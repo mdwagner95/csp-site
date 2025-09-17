@@ -16,8 +16,7 @@ import Layout from '../layouts/Layout.astro';
                     Enter 5x5 letter (1 bit per pixel, 25 pixels per letter):<br />
                     <span class="text-xs text-gray-500">(e.g. 01100... or with spaces/newlines)</span>
                 </label>
-                <textarea id="binaryInput" rows="7" cols="16" class="font-mono border p-2 w-[120px] h-32 text-left" spellcheck="false" placeholder=""
-                ></textarea>
+                <textarea id="binaryInput" rows="7" cols="16" class="font-mono border p-2 w-[120px] h-32 text-left" spellcheck="false"></textarea>
                 <button id="formatBtn" class="mt-2 px-4 py-1 bg-blue-500 text-white rounded">Readable Format</button>
             </div>
             <!-- Center: Display Grid -->
@@ -28,9 +27,9 @@ import Layout from '../layouts/Layout.astro';
             <!-- Right: Controls & live text preview -->
             <div class="flex-1 min-w-[220px]">
                 <h2 class="font-semibold mb-2">Text Preview</h2>
-                <textarea id="textInput" rows="3" class="w-full border p-2 mb-2" placeholder="Abracadabra"></textarea>
+                <textarea id="textInput" rows="3" class="w-full border p-2 mb-2" placeholder="A bad cat ate a bee"></textarea>
                 <canvas id="previewCanvas" width="200" height="60" class="border bg-black"></canvas>
-                <div class="text-xs text-gray-500 mt-1">Each row is 10 letters wide, text wraps automatically.</div>
+                <div class="text-xs text-gray-500 mt-1">Each row is 10 letters wide, text wraps automatically. Spaces are white squares.</div>
             </div>
         </div>
     </main>
@@ -46,10 +45,13 @@ import Layout from '../layouts/Layout.astro';
             const canvas = document.getElementById('previewCanvas');
             const ctx = canvas.getContext('2d');
 
-            // Font data: each letter starts as blank
+            // Default pattern for 'A'
+            const defaultA = '11011\n10101\n10001';
+
+            // Font data: each letter starts as blank except 'A'
             const fontData = {};
             letters.split('').forEach((l) => {
-                fontData[l] = ''; // raw user text for each letter
+                fontData[l] = l === 'A' ? defaultA : '';
             });
 
             // Populate dropdown
@@ -63,14 +65,13 @@ import Layout from '../layouts/Layout.astro';
             let currentLetter = letters[0];
             letterSelect.value = currentLetter;
 
-            // Pink for undefined/invalid, black/white for defined
             function binToColor(bin) {
                 if (bin === '0') return '#111';
                 if (bin === '1') return '#fff';
                 return '#fbb6ce'; // light pink for error/missing
             }
 
-            // Parse user input into array of 1-bit strings, up to 25
+            // Parse user input into array of bits, up to 25
             function parseBinaryInput(str) {
                 // Only 0/1 allowed, split each char
                 const bits = str.replace(/[^01]/g, '');
@@ -93,18 +94,16 @@ import Layout from '../layouts/Layout.astro';
 
             // Render binary textarea for current letter (as raw text)
             function renderBinaryInput() {
-                const raw = fontData[currentLetter] || '';
-                binaryInput.value = raw;
+                binaryInput.value = fontData[currentLetter] || '';
             }
 
-            // When user types, update the current letter's data
             function updateFontDataFromBinaryInput() {
-                fontData[currentLetter] = binaryInput.value; // always store raw
+                fontData[currentLetter] = binaryInput.value;
                 renderGrid();
                 renderCanvas();
             }
 
-            // "Readable Format": 5 bits per line, 5 lines, spaces between bits
+            // 5 bits per line, 5 lines, spaces between bits
             function readableFormat(raw) {
                 const arr = parseBinaryInput(raw);
                 let out = [];
@@ -126,16 +125,25 @@ import Layout from '../layouts/Layout.astro';
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 ctx.fillStyle = 'black';
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
-                const text = (textInput.value || textInput.placeholder).toUpperCase().replace(/[^A-Z]/g, '');
-                const pixelSize = 4; // small font preview for more lines
+                // Use default phrase if box is empty
+                const text = textInput.value || textInput.placeholder;
+                const pixelSize = 4;
                 const charsPerLine = 10;
                 const lines = Math.ceil(text.length / charsPerLine);
+
                 for (let l = 0; l < lines; l++) {
                     for (let i = 0; i < charsPerLine; i++) {
                         const charIdx = l * charsPerLine + i;
                         if (charIdx >= text.length) break;
                         const char = text[charIdx];
-                        const raw = fontData[char] || '';
+                        if (char === ' ') {
+                            // Draw a 5x5 white square for space
+                            ctx.fillStyle = '#fff';
+                            ctx.fillRect(i * 5 * pixelSize, l * 5 * pixelSize, 5 * pixelSize, 5 * pixelSize);
+                            continue;
+                        }
+                        const upChar = char.toUpperCase();
+                        const raw = fontData[upChar] || '';
                         const arr = parseBinaryInput(raw);
                         for (let row = 0; row < 5; row++) {
                             for (let col = 0; col < 5; col++) {
@@ -149,7 +157,6 @@ import Layout from '../layouts/Layout.astro';
                 }
             }
 
-            // Event listeners
             letterSelect.addEventListener('change', (e) => {
                 currentLetter = e.target.value;
                 renderBinaryInput();
@@ -165,7 +172,7 @@ import Layout from '../layouts/Layout.astro';
             });
 
             // Set default preview text
-            textInput.value = 'Abracadabra';
+            textInput.value = 'A bad cat ate a bee';
 
             // Initial
             renderBinaryInput();
