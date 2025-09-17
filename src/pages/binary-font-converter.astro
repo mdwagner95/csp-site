@@ -3,29 +3,34 @@ import Layout from '../layouts/Layout.astro';
 ---
 
 <Layout title="Binary Font Creator">
-    <main class="max-w-6xl mx-auto px-4 py-8 flex flex-col gap-8">
+    <main class="max-w-4xl mx-auto px-4 py-8 flex flex-col gap-8">
         <h1 class="text-3xl font-bold text-center mb-6">Binary Font Creator</h1>
         <div class="flex flex-col md:flex-row gap-8">
             <!-- Left: Letter binary input -->
-            <div class="flex flex-col gap-4 items-center">
+            <div class="flex flex-col gap-4 items-start w-full md:w-auto">
                 <label class="mb-2 font-semibold">
                     Current letter:
                     <select id="letterSelect" class="ml-2 border px-2 py-1"></select>
                 </label>
-                <label class="font-semibold mb-1" for="binaryInput">Edit 8x8 letter (8 lines, 3 bits each: 000-111):</label>
-                <textarea id="binaryInput" rows="8" cols="6" class="font-mono border p-2 w-28 h-36 text-center" spellcheck="false"></textarea>
+                <label class="font-semibold mb-1" for="binaryInput">
+                    Enter 5x5 letter (1 bit per pixel, 25 pixels per letter):<br />
+                    <span class="text-xs text-gray-500">(e.g. 01100... or with spaces/newlines)</span>
+                </label>
+                <textarea id="binaryInput" rows="7" cols="16" class="font-mono border p-2 w-[120px] h-32 text-left" spellcheck="false" placeholder=""
+                ></textarea>
+                <button id="formatBtn" class="mt-2 px-4 py-1 bg-blue-500 text-white rounded">Readable Format</button>
             </div>
             <!-- Center: Display Grid -->
             <div class="flex flex-col items-center gap-2">
                 <h2 class="font-semibold text-center">Preview Grid</h2>
-                <div id="grid" class="grid grid-cols-8 gap-0.5 border p-2" style="width:104px"></div>
+                <div id="grid" class="grid grid-cols-5 gap-1 border p-2" style="width:90px"></div>
             </div>
             <!-- Right: Controls & live text preview -->
-            <div class="flex-1 min-w-[320px]">
+            <div class="flex-1 min-w-[220px]">
                 <h2 class="font-semibold mb-2">Text Preview</h2>
-                <textarea id="textInput" rows="3" class="w-full border p-2 mb-2" placeholder="Type your text here"></textarea>
-                <canvas id="previewCanvas" width="640" height="64" class="border bg-black"></canvas>
-                <div class="text-xs text-gray-500 mt-1">Supports long text (up to 80 letters wide)</div>
+                <textarea id="textInput" rows="3" class="w-full border p-2 mb-2" placeholder="Abracadabra"></textarea>
+                <canvas id="previewCanvas" width="200" height="60" class="border bg-black"></canvas>
+                <div class="text-xs text-gray-500 mt-1">Each row is 10 letters wide, text wraps automatically.</div>
             </div>
         </div>
     </main>
@@ -37,13 +42,14 @@ import Layout from '../layouts/Layout.astro';
             const grid = document.getElementById('grid');
             const textInput = document.getElementById('textInput');
             const binaryInput = document.getElementById('binaryInput');
+            const formatBtn = document.getElementById('formatBtn');
             const canvas = document.getElementById('previewCanvas');
             const ctx = canvas.getContext('2d');
 
-            // Create default fontData: each letter has 8 rows, each row is a 3-bit string ("000")
+            // Font data: each letter starts as blank
             const fontData = {};
             letters.split('').forEach((l) => {
-                fontData[l] = Array(8).fill('000'); // 8 lines of "000"
+                fontData[l] = ''; // raw user text for each letter
             });
 
             // Populate dropdown
@@ -57,65 +63,87 @@ import Layout from '../layouts/Layout.astro';
             let currentLetter = letters[0];
             letterSelect.value = currentLetter;
 
-            // Utilities for binary->gray color
-            function binToGray(bin) {
-                // bin: "000".."111"
-                const val = parseInt(bin, 2);
-                const gray = Math.round((255 * val) / 7); // 0..7 mapped to 0..255
-                return `rgb(${gray},${gray},${gray})`;
+            // Pink for undefined/invalid, black/white for defined
+            function binToColor(bin) {
+                if (bin === '0') return '#111';
+                if (bin === '1') return '#fff';
+                return '#fbb6ce'; // light pink for error/missing
             }
 
-            // Render the grid (display only)
+            // Parse user input into array of 1-bit strings, up to 25
+            function parseBinaryInput(str) {
+                // Only 0/1 allowed, split each char
+                const bits = str.replace(/[^01]/g, '');
+                return bits.split('').slice(0, 25);
+            }
+
+            // Render the grid (display only, 5x5)
             function renderGrid() {
                 grid.innerHTML = '';
-                const pattern = fontData[currentLetter];
-                for (let row = 0; row < 8; row++) {
-                    const bin = pattern[row] || '000';
-                    for (let col = 0; col < 8; col++) {
-                        const cell = document.createElement('div');
-                        cell.className = 'w-3 h-3 border border-gray-400';
-                        cell.style.backgroundColor = binToGray(bin);
-                        grid.appendChild(cell);
-                    }
+                const raw = fontData[currentLetter] || '';
+                const arr = parseBinaryInput(raw);
+                for (let i = 0; i < 25; i++) {
+                    const bin = arr[i];
+                    const cell = document.createElement('div');
+                    cell.className = 'w-6 h-6 border border-gray-300';
+                    cell.style.backgroundColor = binToColor(bin);
+                    grid.appendChild(cell);
                 }
             }
 
-            // Render binary textarea for current letter
+            // Render binary textarea for current letter (as raw text)
             function renderBinaryInput() {
-                binaryInput.value = (fontData[currentLetter] || []).join('\n');
+                const raw = fontData[currentLetter] || '';
+                binaryInput.value = raw;
             }
 
-            // Update fontData from binary textarea
+            // When user types, update the current letter's data
             function updateFontDataFromBinaryInput() {
-                const lines = binaryInput.value.split('\n');
-                // Only keep first 8 lines, pad with "000"
-                fontData[currentLetter] = Array(8)
-                    .fill('000')
-                    .map((_, i) => {
-                        let line = lines[i] || '000';
-                        line = line.replace(/[^01]/g, '').slice(0, 3); // Only first 3 bits
-                        return line.padEnd(3, '0');
-                    });
+                fontData[currentLetter] = binaryInput.value; // always store raw
                 renderGrid();
                 renderCanvas();
             }
 
-            // Draw the preview canvas (many letters)
+            // "Readable Format": 5 bits per line, 5 lines, spaces between bits
+            function readableFormat(raw) {
+                const arr = parseBinaryInput(raw);
+                let out = [];
+                for (let row = 0; row < 5; row++) {
+                    let line = [];
+                    for (let col = 0; col < 5; col++) {
+                        const idx = row * 5 + col;
+                        if (typeof arr[idx] !== 'undefined') {
+                            line.push(arr[idx]);
+                        }
+                    }
+                    if (line.length) out.push(line.join(' '));
+                }
+                return out.join('\n');
+            }
+
+            // Draw the preview canvas (10 chars per line, wrap as needed)
             function renderCanvas() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
                 ctx.fillStyle = 'black';
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
-                const text = textInput.value.toUpperCase().replace(/[^A-Z]/g, '');
-                const pixelSize = 8;
-                for (let i = 0; i < text.length; i++) {
-                    const char = text[i];
-                    const pattern = fontData[char];
-                    if (!pattern) continue;
-                    for (let row = 0; row < 8; row++) {
-                        const bin = pattern[row] || '000';
-                        const gray = binToGray(bin);
-                        ctx.fillStyle = gray;
-                        for (let col = 0; col < 8; col++) {
-                            ctx.fillRect(i * 8 * pixelSize + col * pixelSize, row * pixelSize, pixelSize, pixelSize);
+                const text = (textInput.value || textInput.placeholder).toUpperCase().replace(/[^A-Z]/g, '');
+                const pixelSize = 4; // small font preview for more lines
+                const charsPerLine = 10;
+                const lines = Math.ceil(text.length / charsPerLine);
+                for (let l = 0; l < lines; l++) {
+                    for (let i = 0; i < charsPerLine; i++) {
+                        const charIdx = l * charsPerLine + i;
+                        if (charIdx >= text.length) break;
+                        const char = text[charIdx];
+                        const raw = fontData[char] || '';
+                        const arr = parseBinaryInput(raw);
+                        for (let row = 0; row < 5; row++) {
+                            for (let col = 0; col < 5; col++) {
+                                const idx = row * 5 + col;
+                                const bin = arr[idx];
+                                ctx.fillStyle = binToColor(bin);
+                                ctx.fillRect(i * 5 * pixelSize + col * pixelSize, l * 5 * pixelSize + row * pixelSize, pixelSize, pixelSize);
+                            }
                         }
                     }
                 }
@@ -127,8 +155,17 @@ import Layout from '../layouts/Layout.astro';
                 renderBinaryInput();
                 renderGrid();
             });
-            binaryInput.addEventListener('input', updateFontDataFromBinaryInput);
+            binaryInput.addEventListener('input', () => {
+                updateFontDataFromBinaryInput();
+            });
             textInput.addEventListener('input', renderCanvas);
+            formatBtn.addEventListener('click', () => {
+                binaryInput.value = readableFormat(binaryInput.value);
+                updateFontDataFromBinaryInput();
+            });
+
+            // Set default preview text
+            textInput.value = 'Abracadabra';
 
             // Initial
             renderBinaryInput();
@@ -138,8 +175,17 @@ import Layout from '../layouts/Layout.astro';
     </script>
 
     <style>
+        #grid {
+            box-sizing: content-box;
+        }
         #grid div {
             transition: background 0.2s;
+            width: 16px;
+            height: 16px;
+            box-sizing: border-box;
+        }
+        #grid > div:nth-child(5n) {
+            margin-right: 0;
         }
     </style>
 </Layout>
