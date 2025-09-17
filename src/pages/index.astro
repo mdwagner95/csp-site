@@ -4,21 +4,36 @@ import ContextAlert from '../components/ContextAlert.astro';
 import Markdown from '../components/Markdown.astro';
 
 const explainer = `
-An Astro website can go way beyond static pages - on the right platform.
+Astro sites can be much more than static pages — especially when deployed on the right platform.
 
-Netlify supports not only [Streaming SSR](https://docs.astro.build/en/guides/server-side-rendering/#html-streaming) and fast [Edge Middleware](https://docs.astro.build/en/guides/middleware/), but also [on-demand revalidation](https://www.netlify.com/blog/cache-tags-and-purge-api-on-netlify/) and [stale-while-revalidate](https://www.netlify.com/blog/swr-and-fine-grained-cache-control/). 
-Any page or data can be rebuilt only when needed, without site visitors ever getting a performance hit.
+Netlify supports features like [Streaming SSR](https://docs.astro.build/en/guides/server-side-rendering/#html-streaming), 
+fast [Edge Middleware](https://docs.astro.build/en/guides/middleware/), 
+and smart caching with [on-demand revalidation](https://www.netlify.com/blog/cache-tags-and-purge-api-on-netlify/) 
+and [stale-while-revalidate](https://www.netlify.com/blog/swr-and-fine-grained-cache-control/).  
+
+This means your content can update instantly, without visitors ever hitting a slow page load.
 `;
 ---
 
-<Layout title="Welcome to Astro.">
-    <ContextAlert class="mb-8" />
-    <h1 class="mb-10">Netlify Platform Starter for Astro</h1>
-    <Markdown content={explainer} class="mb-10 text-lg" />
-    <p>
-        <a href="https://docs.netlify.com/frameworks/astro/" class="btn btn-lg sm:min-w-64">Read the Docs</a>
-    </p>
-    <a href="/binary-font-converter">
-        <button>Binary Font Converter</button>
-    </a>
+<Layout title="Welcome to Astro">
+    <main class="max-w-3xl mx-auto px-6 py-12">
+        <ContextAlert class="mb-8" />
+
+        <h1 class="text-4xl font-bold mb-6 text-center">Netlify Platform Starter for Astro</h1>
+
+        <Markdown content={explainer} class="mb-10 text-lg leading-relaxed text-gray-700" />
+
+        <div class="flex flex-col sm:flex-row gap-4 justify-center">
+            <a
+                href="https://docs.netlify.com/frameworks/astro/"
+                class="px-6 py-3 rounded-lg bg-blue-600 text-white font-semibold text-center hover:bg-blue-700 transition"
+            >
+                📖 Read the Docs
+            </a>
+
+            <a href="/binary-font-converter" class="px-6 py-3 rounded-lg bg-green-600 text-white font-semibold text-center hover:bg-green-700 transition">
+                🖋 Binary Font converter
+            </a>
+        </div>
+    </main>
 </Layout>
