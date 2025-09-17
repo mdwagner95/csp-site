@@ -1,13 +1,112 @@
 ---
-
+import Layout from '../layouts/Layout.astro';
 ---
 
-<html>
-    <head>
-        <title>Binary Font Converter</title>
-    </head>
-    <body>
-        <h1>Binary Font Converter</h1>
-        <!-- Add your Binary Font Creator content here -->
-    </body>
-</html>
+<Layout title="Binary Font Creator">
+    <main class="max-w-5xl mx-auto px-6 py-12 flex flex-col gap-10">
+        <h1 class="text-3xl font-bold text-center mb-6">Binary Font Creator</h1>
+        <div class="flex gap-12 flex-wrap md:flex-nowrap">
+            <!-- Left: 8x8 grid editor -->
+            <div>
+                <h2 class="font-semibold mb-2">8x8 Pixel Grid</h2>
+                <div id="grid" class="grid grid-cols-8 gap-1 border p-2"></div>
+                <label class="mt-4 block">
+                    Current letter:
+                    <select id="letterSelect" class="ml-2 border px-2 py-1"></select>
+                </label>
+            </div>
+            <!-- Right: Controls & live text preview -->
+            <div class="flex-1 min-w-[300px]">
+                <h2 class="font-semibold mb-2">Text Preview</h2>
+                <textarea id="textInput" rows="3" class="w-full border p-2 mb-4" placeholder="Type your text here"></textarea>
+                <canvas id="previewCanvas" width="256" height="64" class="border bg-black"></canvas>
+            </div>
+        </div>
+    </main>
+
+    <script is:inline>
+        document.addEventListener('DOMContentLoaded', () => {
+            const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+            const letterSelect = document.getElementById('letterSelect');
+            const grid = document.getElementById('grid');
+            const textInput = document.getElementById('textInput');
+            const canvas = document.getElementById('previewCanvas');
+            const ctx = canvas.getContext('2d');
+
+            // Font data: each letter maps to 8x8 grid of 0 or 1
+            const fontData = {};
+            letters.split('').forEach((l) => {
+                fontData[l] = Array(8)
+                    .fill(null)
+                    .map(() => Array(8).fill(0));
+            });
+
+            // Populate letter dropdown
+            letters.split('').forEach((l) => {
+                const opt = document.createElement('option');
+                opt.value = l;
+                opt.textContent = l;
+                letterSelect.appendChild(opt);
+            });
+
+            let currentLetter = letters[0];
+            letterSelect.value = currentLetter;
+            letterSelect.addEventListener('change', (e) => {
+                currentLetter = e.target.value;
+                renderGrid();
+            });
+
+            // Create 8x8 grid
+            function renderGrid() {
+                grid.innerHTML = '';
+                for (let row = 0; row < 8; row++) {
+                    for (let col = 0; col < 8; col++) {
+                        const cell = document.createElement('div');
+                        cell.className = 'w-8 h-8 border border-gray-400 cursor-pointer inline-block';
+                        cell.style.backgroundColor = fontData[currentLetter][row][col] ? 'white' : 'black';
+                        cell.addEventListener('click', () => {
+                            fontData[currentLetter][row][col] = fontData[currentLetter][row][col] ? 0 : 1;
+                            cell.style.backgroundColor = fontData[currentLetter][row][col] ? 'white' : 'black';
+                            renderCanvas();
+                        });
+                        grid.appendChild(cell);
+                    }
+                }
+            }
+
+            // Draw canvas (each "pixel" is 8x8 real px)
+            function renderCanvas() {
+                ctx.fillStyle = 'black';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                ctx.fillStyle = 'white';
+                const text = textInput.value.toUpperCase().replace(/[^A-Z]/g, '');
+                const pixelSize = 8;
+                for (let i = 0; i < text.length; i++) {
+                    const char = text[i];
+                    const charData = fontData[char];
+                    if (!charData) continue;
+                    for (let row = 0; row < 8; row++) {
+                        for (let col = 0; col < 8; col++) {
+                            if (charData[row][col]) {
+                                ctx.fillRect(i * 8 * pixelSize + col * pixelSize, row * pixelSize, pixelSize, pixelSize);
+                            }
+                        }
+                    }
+                }
+            }
+
+            textInput.addEventListener('input', renderCanvas);
+
+            // Initial render
+            renderGrid();
+            renderCanvas();
+        });
+    </script>
+
+    <style>
+        #grid div {
+            transition: background 0.2s;
+        }
+    </style>
+</Layout>
